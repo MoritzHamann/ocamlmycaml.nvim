@@ -3,6 +3,98 @@ local make_entry = require("telescope.make_entry")
 
 local M = {}
 
+
+--- @class Process
+local Process = {
+    --- @type string[]
+    cmd = {},
+
+    --- @type vim.SystemOpts
+    opts = {},
+
+    --- @type vim.SystemObj|nil
+    p = nil,
+
+    --- @type Process[] list of all running processes
+    active = {}
+}
+Process.__index = Process
+
+
+--- @param cmd string[]
+--- @param opts vim.SystemOpts
+--- @param on_exit function | nil
+--- @return Process | nil
+function Process:new(cmd, opts, on_exit)
+
+    local new_process = setmetatable({
+        cmd = cmd,
+        opts = opts or {},
+    }, self)
+
+    new_process.p = vim.system(cmd, opts, vim.schedule_wrap(function(completed)
+        -- TODO: error handling on signals etc
+        local index = nil
+        for i, process in ipairs(Process.active) do
+            if process == new_process then
+                index = i
+                break
+            end
+        end
+
+        if index ~= nil then
+            print("removing process at index", index)
+            table.remove(Process.active, index)
+        end
+
+        if on_exit ~= nil then
+            on_exit(completed)
+        end
+    end))
+
+    table.insert(Process.active, new_process)
+
+    return new_process
+end
+
+--- @param signal integer
+function Process:stop(signal)
+    -- using SIGINT by default
+    if signal == nil then
+        signal = 2
+    end
+
+    if self.p ~= nil and self.p:is_closing() == false then
+        self.p:kill(signal)
+    end
+end
+
+--- @param signal integer
+function Process:stop_group(signal)
+    -- using SIGINT by default
+    if signal == nil then
+        signal = 2
+    end
+
+    if self.p ~= nil and self.p:is_closing() == false then
+        local gpid = -self.p.pid
+        vim.uv.kill(gpid, signal)
+    end
+end
+
+
+--- @param input string|string[]
+function Process:write(input)
+    if self.p == nil then
+        print("process not started")
+        return
+    end
+    self.p:write(input)
+end
+
+M.Process = Process
+
+
 --- @class Logger
 --- @field trace function<string>
 --- @field debug function<string>
@@ -80,6 +172,33 @@ end
 
 M.new_callback_finder = function(opts)
     return CallbackDynamicFinder:new(opts)
+end
+
+
+--- @param buffer_name string
+--- @return integer | nil
+M.find_buffer = function(buffer_name)
+    local buffer_list = vim.api.nvim_list_bufs()
+    for _, buf_num in ipairs(buffer_list) do
+        local name = vim.fn.bufname(buf_num)
+        if name == buffer_name then
+            return buf_num
+        end
+    end
+    return nil
+end
+
+
+--- @param buffer_name string
+--- @param lines string[]
+M.append_to_buffer = function(buffer_name, lines)
+    local buffer = M.find_buffer(buffer_name)
+    if buffer == nil then
+        buffer = vim.api.nvim_create_buf(true, true)
+        vim.api.nvim_buf_set_name(buffer, buffer_name)
+    end
+
+    vim.api.nvim_buf_set_lines(buffer, -1, -1, true, lines)
 end
 
 return M
