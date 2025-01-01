@@ -75,9 +75,11 @@ M.setup = function(opts)
     --     end
     -- end, {nargs = '*'})
 
-    -- setup dune releated commands
+    -- setup main :Dune command which executes `dune` with the arguments
     vim.api.nvim_create_user_command("Dune", dune.dune_command, {nargs = '*'})
-    vim.api.nvim_create_user_command("DuneStop", dune.stop_all_dune_jobs, {})
+
+    -- setup command to stop individual watch builds
+    vim.api.nvim_create_user_command("DuneStop", dune.select_job_to_stop, {})
 
     --- @type Utop
     local utop_instance = nil

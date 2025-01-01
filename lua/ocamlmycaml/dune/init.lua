@@ -1,14 +1,4 @@
--- local Job = require('plenary.job')
 local DuneJob = require('ocamlmycaml.dune.dune_job').DuneJob
-
-
--- TODOs:
--- * stop DuneJob when last buffer of project is closed
--- * log DuneJob output to buffer (?)
--- * investigate use of different build directories
---   (i.e. to be able to run `dune build` and `dune utop` simultaneous)
--- * get a list of dune defined dependencies (requires `sexp` to be installed):
---      `dune describe external-lib-deps | sexp query "smash (field external_deps) each (index 0)"`
 
 
 local M = {
@@ -24,6 +14,25 @@ M.find_dune_job_for_project = function(dune_root)
         end
     end
     return nil
+end
+
+M.select_job_to_stop = function()
+    --- @param selection DuneJob
+    local on_choice = function(selection)
+        if selection ~= nil then
+            selection:stop()
+        end
+    end
+
+    --- @param job DuneJob
+    local format_item = function(job)
+        return vim.fn.join(job.command, " ")
+    end
+
+    vim.ui.select(DuneJob.active_jobs(), {
+        prompt = "Select process to stop:",
+        format_item = format_item
+    }, on_choice)
 end
 
 local function stop_all_dune_jobs()
@@ -108,10 +117,6 @@ M.find_project_folder = function (file)
     end
     return vim.fs.root(file, "dune-project")
 end
-
-
--- stop all running dune jobs
-M.stop_all_dune_jobs = stop_all_dune_jobs
 
 
 --- @class UserCommandInfo
