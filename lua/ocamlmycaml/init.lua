@@ -11,36 +11,69 @@ local utop = require("ocamlmycaml.utop")
 --- @class OcamlMyCamlSetup
 --- @field dune DuneSetup
 --- @field lsp LspSetup
+--- @field mappings table<string, string|function>
 
 
 local M = {}
 
 --- @param opts OcamlMyCamlSetup
 M.setup = function(opts)
-    vim.lsp.set_log_level("TRACE")
+    vim.lsp.set_log_level("DEBUG")
 
     -- setup the telescope extension (will make sure the autocomplete is available)
     -- can be accessed via :Telescope ocamlmycaml search_by_type
     require('telescope').load_extension("ocamlmycaml")
 
     -- setup dune options
-    dune.setup(opts.dune)
+    M.dune = dune.setup(opts.dune)
 
-    vim.api.nvim_create_user_command("Ocamllsp", function (command)
-        local args = command.fargs
-        if #args < 1 then
-            return
-        end
+    -- setup key bindings
+    M.mappings_autocmd_group = vim.api.nvim_create_augroup("ocamlmycaml.mappings", {})
+    if opts.mappings ~= nil and type(opts.mappings) == 'table' then
+        vim.api.nvim_create_autocmd('BufEnter', {
+            group = M.mappings_autocmd_group,
+            pattern = {"*.ml", "*.re", "*.mli", "*.rei"},
+            callback = function(ev)
+                --- @type vim.keymap.set.Opts
+                local mapping_opts = {remap = false, buffer = ev.buf}
 
-        local buffer = vim.api.nvim_get_current_buf()
-        if args[1] == "switch" then
-            lsp.switchImplIntf(buffer)
-        elseif args[1] == "hole" then
-            lsp.nextHole(buffer)
-        elseif args[1] == "typesearch" then
-            lsp.merlin.find_by_type()
-        end
-    end, {nargs = '*'})
+                -- example or mappings
+                --[[
+                local mappings = {
+                    ["<leader>ocb"] = dune.build,
+                    ["<leader>ocb"] = {cmd = dune.build, mode = "n"},
+                    ["<C-s>"] = {cmd = function() end, mode = {"n", "i"}},
+                }
+                --]]
+
+                for key, rhs in pairs(opts.mappings) do
+                    if type(rhs) == "table" then
+                        vim.keymap.set(rhs.mode, key, rhs.cmd, mapping_opts)
+                    else
+                        vim.keymap.set("n", key, rhs, mapping_opts)
+                    end
+                end
+            end
+        })
+
+    end
+
+    -- TODO: clean this up
+    -- vim.api.nvim_create_user_command("Ocamllsp", function (command)
+    --     local args = command.fargs
+    --     if #args < 1 then
+    --         return
+    --     end
+    --
+    --     local buffer = vim.api.nvim_get_current_buf()
+    --     if args[1] == "switch" then
+    --         lsp.switchImplIntf(buffer)
+    --     elseif args[1] == "hole" then
+    --         lsp.nextHole(buffer)
+    --     elseif args[1] == "typesearch" then
+    --         lsp.merlin.find_by_type()
+    --     end
+    -- end, {nargs = '*'})
 
     -- setup dune releated commands
     vim.api.nvim_create_user_command("Dune", dune.dune_command, {nargs = '*'})
@@ -64,25 +97,25 @@ M.setup = function(opts)
     end, {})
 
 
-    vim.keymap.set('n', '<leader>k', function()
-        local lspApi = require("ocamlmycaml.lsp.api");
-        lspApi.custom_methods.hoverExtended(0, function(error, data)
-            vim.notify(vim.inspect(error))
-            vim.notify(vim.inspect(data))
-        end)
-    end, {})
+    -- vim.keymap.set('n', '<leader>k', function()
+    --     local lspApi = require("ocamlmycaml.lsp.api");
+    --     lspApi.custom_methods.hoverExtended(0, function(error, data)
+    --         vim.notify(vim.inspect(error))
+    --         vim.notify(vim.inspect(data))
+    --     end)
+    -- end, {})
 
-    vim.keymap.set('n', '<leader>oo', function()
-        lsp.expand_ppx()
-    end, {})
+    -- vim.keymap.set('n', '<leader>oo', function()
+    --     lsp.expand_ppx()
+    -- end, {})
 
-    vim.keymap.set('n', '<leader>oa', function()
-        local lspApi = require("ocamlmycaml.lsp.api");
-        lspApi.custom_methods.construct(0, function(error, data)
-            vim.notify(vim.inspect(error))
-            vim.notify(vim.inspect(data))
-        end)
-    end, {})
+    -- vim.keymap.set('n', '<leader>oa', function()
+    --     local lspApi = require("ocamlmycaml.lsp.api");
+    --     lspApi.custom_methods.construct(0, function(error, data)
+    --         vim.notify(vim.inspect(error))
+    --         vim.notify(vim.inspect(data))
+    --     end)
+    -- end, {})
 
     vim.keymap.set({'v'}, '<C-CR>', function ()
         -- \22 => CTRL-V => visual block mode

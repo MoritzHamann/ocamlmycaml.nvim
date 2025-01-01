@@ -35,9 +35,9 @@ local expand_ppx = function(opts)
     opts = opts or {bufnr = 0}
 
     local lspApi = require("ocamlmycaml.lsp.api");
-    lspApi.merlin.expand_ppx(opts.bufnr, function(error, data)
-        if error ~= nil then
-            vim.notify(vim.inspect(error))
+    lspApi.merlin.expand_ppx(opts.bufnr, function(err, data)
+        if err ~= nil then
+            vim.notify(vim.inspect(err))
             return
         end
         local inner = vim.json.decode(data.result)

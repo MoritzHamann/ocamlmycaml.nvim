@@ -90,7 +90,7 @@ M.setup = function(opts)
                         end
                     end
                     -- we haven't found an active job for the current root dir
-                    DuneJob:run(dune_root, {"dune", "build", "-w", "--build-dir=_build_lsp"})
+                    DuneJob:run(dune_root, {"dune", "build", "-w"})
                 end
             end
         })
