@@ -82,11 +82,11 @@ M.setup = function(opts)
     })
 
     -- ensure we start a default build job once we enter an ocaml file in a dune project
-    if opts.auto_start == true then
+    if opts.auto_start ~= nil and opts.auto_start.enabled == true then
         vim.api.nvim_create_autocmd({"LspAttach"}, {
             group = au_grp,
             once = false,
-            pattern = {"*.ml", "*.mli"},
+            pattern = {"*.ml", "*.mli", "*.re", "*.rei"},
             callback = function(event)
                 local file = event.file
                 local dune_root = M.find_project_folder(file)
@@ -99,7 +99,8 @@ M.setup = function(opts)
                         end
                     end
                     -- we haven't found an active job for the current root dir
-                    DuneJob:run(dune_root, {"dune", "build", "-w"})
+                    local build_dir = opts.auto_start.build_dir or "_build"
+                    DuneJob:run(dune_root, {"dune", "build", "-w", '--build-dir='..build_dir})
                 end
             end
         })
@@ -142,16 +143,21 @@ M.dune_command = function(command)
     end
 
     local file = vim.api.nvim_buf_get_name(0)
-    local root = M.find_project_folder(file)
+    local root = M.find_project_folder(file) or vim.fn.getcwd()
     local cmd = vim.deepcopy(args)
     table.insert(cmd, 1, 'dune')
 
-    if root == nil then
-        error("Not a dune project")
-        return
-    end
-
     DuneJob:run(root, cmd)
+end
+
+M.dune = function(opts)
+    local cmd = opts.cmd
+    if cmd ~= nil then
+        local file = vim.api.nvim_buf_get_name(0)
+        local root = M.find_project_folder(file) or vim.fn.getcwd()
+        table.insert(cmd, 1, 'dune')
+        DuneJob:run(root, cmd)
+    end
 end
 
 

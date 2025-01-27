@@ -41,7 +41,7 @@ return {
                         "-position", position,
                         "-query", prompt,
                         "-limit", "50",
-                        "-with-doc", "true"
+                        -- "-with-doc", "false"
                     },
                     asSexp = false
                 }

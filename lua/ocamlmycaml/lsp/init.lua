@@ -9,7 +9,7 @@ local switchImplIntf = function(buffer)
         local related_file = vim.uri_to_fname(file_uri)
 
         -- if called on a .mli file, just go to the corresponding .ml file
-        if vim.endswith(related_file, ".ml") then
+        if vim.endswith(related_file, ".ml") or vim.endswith(related_file, ".re") then
             vim.cmd(":e " .. related_file)
             return
         end
@@ -20,10 +20,17 @@ local switchImplIntf = function(buffer)
             return
         end
 
+        -- FIX: in case we already infered the interface file but did not
+        --      yet safe the buffer, this will try to create the buffer again
+        --      and then fail.
         lsp_api.custom_methods.inferIntf(buffer, function(err2, result2)
             local lines = vim.split(result2, "\n")
             local new_buf = vim.api.nvim_create_buf(true, false)
-            vim.api.nvim_set_option_value("ft", "ocaml", { buf = new_buf })
+            local ft = "ocaml"
+            if vim.endswith(related_file, ".rei") then
+                ft = "reason"
+            end
+            vim.api.nvim_set_option_value("ft", ft, { buf = new_buf })
             vim.api.nvim_buf_set_name(new_buf, related_file)
             vim.api.nvim_buf_set_lines(new_buf, 0, 0, true, lines)
             vim.api.nvim_win_set_buf(0, new_buf)
